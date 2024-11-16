@@ -1,0 +1,29 @@
+import re
+import torch
+
+# Read the input file
+file_path = "C:\\Users\\edgar\\OneDrive\\Desktop\\wfspeech.txt"
+with open(file_path, 'r', encoding='utf-8') as f:
+    original_text = f.read()
+
+# Clean the text: keep only letters, numbers, and spaces; convert to lowercase
+cleaned_text = re.sub(r'[^a-zA-Z0-9\s]', '', original_text).lower()
+
+# Save the cleaned text to a new file for manual review
+cleaned_file_path = "C:\\Users\\edgar\\OneDrive\\Desktop\\cleaned_wfspeech.txt"
+with open(cleaned_file_path, 'w', encoding='utf-8') as f:
+    f.write(cleaned_text)
+
+# Tokenization setup
+chars = sorted(list(set(cleaned_text)))
+vocab_size = len(chars)
+stoi = { ch:i for i,ch in enumerate(chars) }
+itos = { i:ch for i,ch in enumerate(chars) }
+encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
+decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+
+# Encode the cleaned text
+data = torch.tensor(encode(cleaned_text), dtype=torch.long)
+n = int(0.9 * len(data)) # first 90% will be train, rest val
+train_data = data[:n]
+val_data = data[n:]
