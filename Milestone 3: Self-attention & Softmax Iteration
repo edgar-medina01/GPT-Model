@@ -178,4 +178,4 @@ milestone_file = "/Users/edgar/Downloads/milestone3.txt"
 with open(milestone_file, 'w', encoding='utf-8') as f:
     f.write(generated_text)
 
-print(f"\nGenerated text saved to {milestone_file}")
+print(f"\nGenerated  text saved to {milestone_file}")
