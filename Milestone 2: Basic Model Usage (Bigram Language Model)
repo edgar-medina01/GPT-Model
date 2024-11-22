@@ -1,0 +1,129 @@
+import torch
+import torch.nn as nn
+from torch.nn import functional as F
+
+# Hyperparameters
+batch_size = 32  # how many independent sequences will we process in parallel?
+block_size = 8  # what is the maximum context length for predictions?
+max_iters = 3000
+eval_interval = 300
+learning_rate = 1e-2
+eval_iters = 200
+generation_final_length = 300  # Number of tokens to save to milestone2.txt
+
+# Set device to 'mps' if available, otherwise fallback to CPU
+device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+print(f"Using device: {device}")
+
+torch.manual_seed(1337)
+
+# Load cleaned data
+file_path = "/Users/edgar/Downloads/cleaned_Gatsby.txt"
+with open(file_path, 'r', encoding='utf-8') as f:
+    cleaned_text = f.read()
+
+# Word-level tokenization
+words = sorted(set(cleaned_text.split()))
+vocab_size = len(words)
+stoi = {word: i for i, word in enumerate(words)}
+itos = {i: word for i, word in enumerate(words)}
+encode = lambda s: [stoi[word] for word in s.split()]
+decode = lambda l: ' '.join([itos[i] for i in l])
+
+# Encode dataset
+data = torch.tensor(encode(cleaned_text), dtype=torch.long)
+n = int(0.9 * len(data))  # 90% train, 10% validation split
+train_data = data[:n]
+val_data = data[n:]
+
+# Get batches
+def get_batch(split):
+    data = train_data if split == 'train' else val_data
+    ix = torch.randint(len(data) - block_size, (batch_size,))
+    x = torch.stack([data[i:i + block_size] for i in ix])
+    y = torch.stack([data[i + 1:i + block_size + 1] for i in ix])
+    x, y = x.to(device), y.to(device)
+    return x, y
+
+@torch.no_grad()
+def estimate_loss():
+    out = {}
+    model.eval()
+    for split in ['train', 'val']:
+        losses = torch.zeros(eval_iters)
+        for k in range(eval_iters):
+            X, Y = get_batch(split)
+            logits, loss = model(X, Y)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
+
+# Bigram language model with updated vocab size
+class BigramLanguageModel(nn.Module):
+    def __init__(self, vocab_size):
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+
+    def forward(self, idx, targets=None):
+        logits = self.token_embedding_table(idx)  # (B, T, C)
+        if targets is None:
+            loss = None
+        else:
+            B, T, C = logits.shape
+            logits = logits.view(B * T, C)
+            targets = targets.view(B * T)
+            loss = F.cross_entropy(logits, targets)
+        return logits, loss
+
+    def generate(self, idx, max_new_tokens):
+        for _ in range(max_new_tokens):
+            logits, _ = self(idx)
+            logits = logits[:, -1, :]
+            probs = F.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+            idx = torch.cat((idx, idx_next), dim=1)
+        return idx
+
+# Initialize model
+model = BigramLanguageModel(vocab_size)
+model = model.to(device)
+
+# Optimizer
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+
+# Training loop
+final_train_loss = 0
+final_val_loss = 0
+
+for iter in range(max_iters):
+    if iter % eval_interval == 0:
+        losses = estimate_loss()
+        final_train_loss = losses['train']
+        final_val_loss = losses['val']
+        print(f"step {iter}: train loss {final_train_loss:.4f}, val loss {final_val_loss:.4f}")
+
+    xb, yb = get_batch('train')
+    logits, loss = model(xb, yb)
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    optimizer.step()
+
+# Print final average training and validation losses
+print(f"\nFinal Average Training Loss: {final_train_loss:.4f}")
+print(f"Final Average Validation Loss: {final_val_loss:.4f}")
+
+# Generate final text
+context = torch.zeros((1, 1), dtype=torch.long, device=device)
+final_generated_tokens = model.generate(context, max_new_tokens=generation_final_length)[0].tolist()
+final_generated_text = decode(final_generated_tokens)
+
+# Print the final generated preview
+print(f"\n--- Final Generated Text ---\n{final_generated_text}\n")
+
+# Save generated text
+generated_file_path = "/Users/edgar/Downloads/milestone2.txt"
+with open(generated_file_path, 'w', encoding='utf-8') as f:
+    f.write(final_generated_text)
+
+print(f"Generated text saved to {generated_file_path}")
