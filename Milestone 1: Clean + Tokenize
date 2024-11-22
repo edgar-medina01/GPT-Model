@@ -1,0 +1,52 @@
+import re
+import torch
+
+# File path
+file_path = "/Users/Edgar/Downloads/Gatsby.txt"
+
+# Function to clean text while keeping letters, numbers, spaces, and punctuation
+def clean_text(text):
+    # Remove unwanted characters ('é', 'ô') and keep specified punctuation
+    text = re.sub(r'[éô]', '', text)
+    allowed_characters = r"[^a-zA-Z0-9\s,\'\"!?:;\-\(\)\[\]\{\}\.]"
+    return re.sub(allowed_characters, '', text)
+
+# Read the input file
+with open(file_path, 'r', encoding='utf-8') as f:
+    original_text = f.read()
+
+# Clean the text
+cleaned_text = clean_text(original_text)
+
+# Save the cleaned text to a new file for manual review
+cleaned_file_path = "/Users/Edgar/Downloads/cleaned_Gatsby.txt"
+with open(cleaned_file_path, 'w', encoding='utf-8') as f:
+    f.write(cleaned_text)
+
+# Tokenization setup
+chars = sorted(list(set(cleaned_text)))
+vocab_size = len(chars)
+stoi = {ch: i for i, ch in enumerate(chars)}
+itos = {i: ch for i, ch in enumerate(chars)}
+encode = lambda s: [stoi[c] for c in s]  # encoder: take a string, output a list of integers
+decode = lambda l: ''.join([itos[i] for i in l])  # decoder: take a list of integers, output a string
+
+# Encode the cleaned text
+data = torch.tensor(encode(cleaned_text), dtype=torch.long)
+n = int(0.9 * len(data))  # first 90% will be train, rest val
+train_data = data[:n]
+val_data = data[n:]
+
+# Output the dataset information
+print("Total length of dataset in characters:", len(original_text))
+print("\n--- Unique characters (before cleaning) ---")
+print(''.join(sorted(list(set(original_text)))))
+print("\nSize of unique characters (before cleaning):", len(set(original_text)))
+
+print("\n--- Unique characters (after cleaning) ---")
+print(''.join(chars))
+print("\nSize of unique characters (after cleaning):", vocab_size)
+
+# Print the first 1000 cleaned characters
+print("\n--- First 1000 cleaned characters ---")
+print(cleaned_text[:1000])
