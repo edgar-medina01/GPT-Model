@@ -2,7 +2,7 @@ import re
 import torch
 
 # File path
-file_path = "/Users/Edgar/Downloads/Gatsby.txt"
+file_path = "/Users/Edgar/Downloads/LOD.txt"
 
 # Function to clean text while keeping letters, numbers, spaces, and punctuation
 def clean_text(text):
@@ -19,7 +19,7 @@ with open(file_path, 'r', encoding='utf-8') as f:
 cleaned_text = clean_text(original_text)
 
 # Save the cleaned text to a new file for manual review
-cleaned_file_path = "/Users/Edgar/Downloads/cleaned_Gatsby.txt"
+cleaned_file_path = "/Users/Edgar/Downloads/cleaned_LOD.txt"
 with open(cleaned_file_path, 'w', encoding='utf-8') as f:
     f.write(cleaned_text)
 
